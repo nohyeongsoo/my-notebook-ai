@@ -15,7 +15,7 @@ BOOK_PARTS = [
 # ==========================================
 
 st.set_page_config(page_title="홈 닥터 AI", page_icon="🏥", layout="wide")
-st.title("🏥 내 손안의 주치의 (무제한 버전)")
+st.title("🏥 내 손안의 주치의 (안정성 강화 버전)")
 
 # 1. 키 설정
 try:
@@ -53,7 +53,7 @@ def load_and_merge_books(file_list):
         status_text.error(f"오류 발생: {e}")
         return None
 
-# 3. 스마트 검색 함수
+# 3. 스마트 검색 함수 (다이어트 적용)
 def get_relevant_content(full_text, query):
     chunk_size = 1000
     chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
@@ -69,28 +69,31 @@ def get_relevant_content(full_text, query):
             relevant_chunks.append((score, chunk))
     
     relevant_chunks.sort(key=lambda x: x[0], reverse=True)
-    top_chunks = [chunk for score, chunk in relevant_chunks[:15]]
+    
+    # [수정] 15개 -> 10개로 줄여서 AI 부담을 덜어줌 (속도/안정성 향상)
+    top_chunks = [chunk for score, chunk in relevant_chunks[:10]]
     return "\n...\n".join(top_chunks)
 
-# 4. [핵심] 불굴의 답변 생성 함수 (자동 재시도 기능)
+# 4. [핵심] 끈질긴 재시도 함수 (강화됨)
 def generate_with_retry(model_name, prompt):
-    # 최대 3번까지 다시 시도합니다.
-    for attempt in range(3):
+    # [수정] 3번 -> 5번 시도
+    max_retries = 5
+    for attempt in range(max_retries):
         try:
             model = genai.GenerativeModel(model_name)
             response = model.generate_content(prompt)
             return response.text
         except Exception as e:
             error_msg = str(e)
-            # 429 에러(너무 빠름)가 뜨면 잠시 쉬었다가 다시 함
-            if "429" in error_msg:
-                time.sleep(3) # 3초 휴식
-                continue # 다시 시도!
-            else:
-                raise e # 다른 에러면 그냥 멈춤
-    raise Exception("서버가 너무 바쁩니다. 잠시 후 다시 시도해주세요.")
+            # 에러가 나면 잠시 대기
+            wait_time = (attempt + 1) * 2 # 2초, 4초, 6초... 점점 길게 대기
+            time.sleep(wait_time) 
+            continue # 포기하지 않고 다시 시도!
+            
+    # 5번 다 실패했을 때만 진짜 에러 표시
+    raise Exception(f"5번 시도했으나 연결 실패. (마지막 에러: {error_msg})")
 
-# 5. 사이드바 및 데이터 로드
+# 5. 데이터 로드 및 UI
 with st.sidebar:
     st.header("📂 추가 자료 등록")
     uploaded_file = st.file_uploader("파일 업로드 (PDF/TXT)", type=['pdf', 'txt'])
@@ -151,10 +154,8 @@ if prompt := st.chat_input("증상을 입력하세요"):
             else:
                 final_context = target_text
 
-            # [최종 수정] 가장 널널한 모델 이름 사용
-            # 선생님 목록에 있던 'gemini-flash-latest'는 1.5 버전의 별명입니다.
-            # 이 모델은 하루 1,500회 무료입니다. (2.5는 20회였음)
-            model_name = 'gemini-flash-latest'
+            # [최종 수정] 가장 안정적인 모델 명칭 사용
+            model_name = 'gemini-1.5-flash'
             
             full_prompt = f"""
             문서 내용:
@@ -165,7 +166,6 @@ if prompt := st.chat_input("증상을 입력하세요"):
             위 내용을 바탕으로 답변하세요.
             """
             
-            # 여기서 '자동 재시도 함수'를 호출합니다!
             final_response = generate_with_retry(model_name, full_prompt)
             
             msg_placeholder.markdown(final_response)
@@ -173,7 +173,8 @@ if prompt := st.chat_input("증상을 입력하세요"):
             
         except Exception as e:
             st.error(f"❌ 에러 발생: {str(e)}")
-            st.info("팁: 질문을 조금 더 구체적으로 적어주세요.")
+            st.warning("팁: 잠시(약 10초) 기다렸다가 다시 질문해보세요.")
+
 
 
 
