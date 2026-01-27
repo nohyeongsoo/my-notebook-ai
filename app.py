@@ -93,7 +93,7 @@ if prompt := st.chat_input("예: 배가 아프고 열이 나요"):
         try:
             # [중요] 대용량 처리에 강한 1.5 Flash 모델 사용
             # (만약 404 에러가 나면 'gemini-2.5-flash'로 바꾸세요)
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.5-flash')
             
             # AI에게 주는 명령 (프롬프트)
             full_prompt = f"""
@@ -125,6 +125,7 @@ if prompt := st.chat_input("예: 배가 아프고 열이 나요"):
                 msg_placeholder.error("⚠️ 모델 설정 오류: 코드에서 모델 이름을 'gemini-2.5-flash'로 바꿔보세요.")
             else:
                 msg_placeholder.error(f"에러가 발생했습니다: {str(e)}")
+
 
 
 
