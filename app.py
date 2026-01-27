@@ -15,7 +15,7 @@ BOOK_PARTS = [
 # ==========================================
 
 st.set_page_config(page_title="홈 닥터 AI", page_icon="🏥", layout="wide")
-st.title("🏥 내 손안의 주치의 (라이트 버전)")
+st.title("🏥 내 손안의 주치의 (무제한 플래시)")
 
 # 1. 키 설정
 try:
@@ -53,7 +53,7 @@ def load_and_merge_books(file_list):
         status_text.error(f"오류 발생: {e}")
         return None
 
-# 3. 스마트 검색 함수 (초경량화)
+# 3. 스마트 검색 함수 (가볍게 5개만 추출)
 def get_relevant_content(full_text, query):
     chunk_size = 1000
     chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
@@ -69,9 +69,6 @@ def get_relevant_content(full_text, query):
             relevant_chunks.append((score, chunk))
     
     relevant_chunks.sort(key=lambda x: x[0], reverse=True)
-    
-    # [수정] 상위 5개만 추출! (AI 배터지게 하지 않기 위해 다이어트)
-    # 이렇게 하면 'Token Limit' 에러가 사라집니다.
     top_chunks = [chunk for score, chunk in relevant_chunks[:5]]
     return "\n...\n".join(top_chunks)
 
@@ -150,8 +147,8 @@ if prompt := st.chat_input("증상을 입력하세요"):
             else:
                 final_context = target_text
 
-            # [핵심 수정] 아까 목록에 있던 것 중 가장 넉넉한 모델!
-            # 이 모델은 하루 1,500회 무료입니다. (2.0은 제한이 빡빡함)
+            # [핵심] 선생님 목록에 있던 'gemini-flash-latest' 사용!
+            # 이 모델은 하루 1,500회 무료입니다. (2.5는 하루 20회)
             model_name = 'gemini-flash-latest'
             
             full_prompt = f"""
@@ -171,9 +168,7 @@ if prompt := st.chat_input("증상을 입력하세요"):
             st.error(f"❌ 에러 발생: {str(e)}")
             if "429" in str(e):
                 st.warning("⚠️ 사용량이 많습니다. 1분만 쉬었다가 해주세요.")
-            elif "404" in str(e):
-                 # 만약 이것도 안 되면 최후의 수단 'gemini-pro' 시도
-                st.warning("⚠️ 모델을 찾을 수 없습니다. (gemini-pro-latest로 시도해보세요)")
+
 
 
 
