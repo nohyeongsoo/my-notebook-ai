@@ -15,7 +15,7 @@ BOOK_PARTS = [
 # ==========================================
 
 st.set_page_config(page_title="홈 닥터 AI", page_icon="🏥", layout="wide")
-st.title("🏥 내 손안의 주치의 (안정성 강화 버전)")
+st.title("🏥 내 손안의 주치의 (2.0 버전)")
 
 # 1. 키 설정
 try:
@@ -53,7 +53,7 @@ def load_and_merge_books(file_list):
         status_text.error(f"오류 발생: {e}")
         return None
 
-# 3. 스마트 검색 함수 (다이어트 적용)
+# 3. 스마트 검색 함수
 def get_relevant_content(full_text, query):
     chunk_size = 1000
     chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
@@ -69,14 +69,12 @@ def get_relevant_content(full_text, query):
             relevant_chunks.append((score, chunk))
     
     relevant_chunks.sort(key=lambda x: x[0], reverse=True)
-    
-    # [수정] 15개 -> 10개로 줄여서 AI 부담을 덜어줌 (속도/안정성 향상)
+    # 상위 10개 추출
     top_chunks = [chunk for score, chunk in relevant_chunks[:10]]
     return "\n...\n".join(top_chunks)
 
-# 4. [핵심] 끈질긴 재시도 함수 (강화됨)
+# 4. 재시도 함수 (안정성 강화)
 def generate_with_retry(model_name, prompt):
-    # [수정] 3번 -> 5번 시도
     max_retries = 5
     for attempt in range(max_retries):
         try:
@@ -85,17 +83,15 @@ def generate_with_retry(model_name, prompt):
             return response.text
         except Exception as e:
             error_msg = str(e)
-            # 에러가 나면 잠시 대기
-            wait_time = (attempt + 1) * 2 # 2초, 4초, 6초... 점점 길게 대기
-            time.sleep(wait_time) 
-            continue # 포기하지 않고 다시 시도!
+            # 429(속도제한) 뿐만 아니라 500번대(서버오류)도 재시도
+            time.sleep((attempt + 1) * 2) 
+            continue 
             
-    # 5번 다 실패했을 때만 진짜 에러 표시
-    raise Exception(f"5번 시도했으나 연결 실패. (마지막 에러: {error_msg})")
+    raise Exception(f"연결 실패: {error_msg}")
 
-# 5. 데이터 로드 및 UI
+# 5. UI 및 로직
 with st.sidebar:
-    st.header("📂 추가 자료 등록")
+    st.header("📂 자료 등록")
     uploaded_file = st.file_uploader("파일 업로드 (PDF/TXT)", type=['pdf', 'txt'])
     st.info(f"기본 탑재: 백과사전 (총 {len(BOOK_PARTS)}권)")
 
@@ -114,24 +110,24 @@ if uploaded_file:
         else:
             target_text = uploaded_file.read().decode("utf-8")
     except Exception as e:
-        st.error(f"파일 읽기 실패: {str(e)}")
+        st.error(f"읽기 실패: {str(e)}")
         st.stop()
         
     if len(target_text) > 30000:
         use_smart_search = True
-        st.toast("🚀 스마트 검색 모드 가동")
+        st.toast("🚀 스마트 검색 가동")
 else:
     if encyclopedia_text:
         target_text = encyclopedia_text
         use_smart_search = True
     else:
-        st.error("백과사전 파일이 없습니다.")
+        st.error("백과사전 파일 없음")
         st.stop()
 
-# 6. 채팅 화면
+# 6. 채팅창
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    st.session_state.messages.append({"role": "assistant", "content": "안녕하세요. 증상을 입력하시면 백과사전에서 찾아드립니다."})
+    st.session_state.messages.append({"role": "assistant", "content": "안녕하세요. 증상을 말씀해 주세요."})
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -154,8 +150,8 @@ if prompt := st.chat_input("증상을 입력하세요"):
             else:
                 final_context = target_text
 
-            # [최종 수정] 가장 안정적인 모델 명칭 사용
-            model_name = 'gemini-1.5-flash'
+            # [수정 완료] 선생님 계정에 확실히 있는 2.0 버전 사용!
+            model_name = 'gemini-2.0-flash'
             
             full_prompt = f"""
             문서 내용:
@@ -167,13 +163,17 @@ if prompt := st.chat_input("증상을 입력하세요"):
             """
             
             final_response = generate_with_retry(model_name, full_prompt)
-            
             msg_placeholder.markdown(final_response)
             st.session_state.messages.append({"role": "assistant", "content": final_response})
             
         except Exception as e:
             st.error(f"❌ 에러 발생: {str(e)}")
-            st.warning("팁: 잠시(약 10초) 기다렸다가 다시 질문해보세요.")
+            # 404 에러가 뜨면 모델명이 틀린 것임
+            if "404" in str(e):
+                st.warning("⚠️ 모델 이름을 찾을 수 없습니다. 코드를 확인해주세요.")
+            else:
+                st.warning("⚠️ 잠시 후 다시 시도해주세요.")
+
 
 
 
