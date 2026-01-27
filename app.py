@@ -15,7 +15,7 @@ BOOK_PARTS = [
 # ==========================================
 
 st.set_page_config(page_title="홈 닥터 AI", page_icon="🏥", layout="wide")
-st.title("🏥 내 손안의 주치의 (비상 전력 모드)")
+st.title("🏥 내 손안의 주치의 (NEW)")
 
 # 1. 키 설정
 try:
@@ -53,7 +53,7 @@ def load_and_merge_books(file_list):
         status_text.error(f"오류 발생: {e}")
         return None
 
-# 3. 스마트 검색 함수 (초절전 모드: 상위 3개만!)
+# 3. 스마트 검색 함수
 def get_relevant_content(full_text, query):
     chunk_size = 1000
     chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
@@ -69,9 +69,8 @@ def get_relevant_content(full_text, query):
             relevant_chunks.append((score, chunk))
     
     relevant_chunks.sort(key=lambda x: x[0], reverse=True)
-    
-    # [수정] 5개 -> 3개로 더 줄임 (하루 할당량 보호)
-    top_chunks = [chunk for score, chunk in relevant_chunks[:3]]
+    # [설정] 상위 5개 추출 (가장 안정적)
+    top_chunks = [chunk for score, chunk in relevant_chunks[:5]]
     return "\n...\n".join(top_chunks)
 
 # 4. 재시도 함수
@@ -83,11 +82,9 @@ def generate_with_retry(model_name, prompt):
             response = model.generate_content(prompt)
             return response.text
         except Exception as e:
-            error_msg = str(e)
             time.sleep(2) 
             continue 
-            
-    raise Exception(f"{error_msg}")
+    raise Exception(f"{str(e)}")
 
 # 5. UI 및 로직
 with st.sidebar:
@@ -150,10 +147,8 @@ if prompt := st.chat_input("증상을 입력하세요"):
             else:
                 final_context = target_text
 
-            # [★핵심] 비상용 예비 모델 사용!
-            # 선생님 목록에 있던 'gemini-2.0-flash-exp' 입니다.
-            # 이건 아직 사용 안 하셨을 테니 쿼터가 남아있을 겁니다.
-            model_name = 'gemini-2.0-flash-exp'
+            # [모델 복구] 아까 가장 잘 됐던 'Lite' 모델로 원상복구
+            model_name = 'gemini-2.0-flash-lite'
             
             full_prompt = f"""
             문서 내용:
@@ -171,8 +166,8 @@ if prompt := st.chat_input("증상을 입력하세요"):
         except Exception as e:
             st.error(f"❌ 에러 발생: {str(e)}")
             if "429" in str(e):
-                st.error("😭 죄송합니다. 오늘 선생님 계정의 '모든 무료 사용량'이 끝난 것 같습니다.")
-                st.info("💡 팁: 내일 아침(오후 4-5시 이후)에 할당량이 초기화되면 다시 정상 작동할 것입니다.")
+                st.error("⚠️ (중요) 새 API 키를 발급받아 Secrets에 넣어주세요.")
+
 
 
 
