@@ -153,7 +153,7 @@ if prompt := st.chat_input("증상을 입력하세요"):
             # [핵심 수정] 
             # 'latest' 같은 별명 대신 '002'라는 구체적인 번호를 씁니다.
             # 이건 2.5 버전(20회 제한)으로 절대 납치되지 않습니다.
-            model_name = 'gemini-1.5-flash-002'
+            model_name = 'gemini-1.5-flash-001'
             
             full_prompt = f"""
             문서 내용:
@@ -174,6 +174,7 @@ if prompt := st.chat_input("증상을 입력하세요"):
                 st.warning("⚠️ 2.5 버전 제한에 걸린 것 같습니다. 이 코드는 1.5-002를 강제합니다. 재부팅해주세요!")
             elif "404" in str(e):
                 st.warning("⚠️ 모델을 찾을 수 없습니다. (gemini-1.5-flash-001로 변경해보세요)")
+
 
 
 
