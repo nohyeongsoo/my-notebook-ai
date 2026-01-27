@@ -7,10 +7,10 @@ import os
 # [설정] 쪼개서 올린 파일 이름들 (책장 목록)
 # 선생님이 올리신 파일명으로 정확히 적어주세요!
 BOOK_PARTS = [
-    "book1.pdf",
-    "book2.pdf",
-    "book3.pdf",
-    "book4.pdf"
+    "jsbgocrc1.pdf",
+    "jsbgocrc2.pdf",
+    "jsbgocrc3.pdf",
+    "jsbgocrc4.pdf"
     # 필요한 만큼 파일 이름을 계속 추가하세요 (콤마 주의!)
 ]
 # ==========================================
@@ -129,6 +129,7 @@ if prompt := st.chat_input("증상을 입력하세요 (예: 명치 쪽이 답답
                 msg_placeholder.error("⚠️ 내용이 너무 방대하여 구글 서버가 잠시 숨을 고르고 있습니다. (1분 뒤 다시 시도해주세요)")
             else:
                 msg_placeholder.error(f"에러가 발생했습니다: {str(e)}")
+
 
 
 
