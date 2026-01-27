@@ -15,7 +15,7 @@ BOOK_PARTS = [
 # ==========================================
 
 st.set_page_config(page_title="홈 닥터 AI", page_icon="🏥", layout="wide")
-st.title("🏥 내 손안의 주치의 (1.5 플래시 버전)")
+st.title("🏥 내 손안의 주치의 (Lite 버전)")
 
 # 1. 키 설정
 try:
@@ -53,7 +53,7 @@ def load_and_merge_books(file_list):
         status_text.error(f"오류 발생: {e}")
         return None
 
-# 3. 스마트 검색 함수 (가볍게 5개만 추출)
+# 3. 스마트 검색 함수 (경량화 유지)
 def get_relevant_content(full_text, query):
     chunk_size = 1000
     chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
@@ -69,6 +69,7 @@ def get_relevant_content(full_text, query):
             relevant_chunks.append((score, chunk))
     
     relevant_chunks.sort(key=lambda x: x[0], reverse=True)
+    # 상위 5개만 추출 (안정성 확보)
     top_chunks = [chunk for score, chunk in relevant_chunks[:5]]
     return "\n...\n".join(top_chunks)
 
@@ -147,9 +148,10 @@ if prompt := st.chat_input("증상을 입력하세요"):
             else:
                 final_context = target_text
 
-            # [핵심] 가장 안정적인 'gemini-1.5-flash' 사용
-            # 이 모델은 하루 1,500회 무료입니다. (2.5는 하루 20회 제한이라 에러남)
-            model_name = 'gemini-1.5-flash'
+            # [핵심] 'Lite(라이트)' 모델 사용!
+            # 선생님 목록에 'gemini-flash-lite-latest'가 있었습니다.
+            # 이건 2.5와 다른 라인업이라 제한이 안 걸려있을 확률이 높습니다.
+            model_name = 'gemini-flash-lite-latest'
             
             full_prompt = f"""
             문서 내용:
@@ -166,8 +168,10 @@ if prompt := st.chat_input("증상을 입력하세요"):
             
         except Exception as e:
             st.error(f"❌ 에러 발생: {str(e)}")
-            if "429" in str(e):
-                st.warning("⚠️ 사용량이 많습니다. 1분만 쉬었다가 해주세요.")
+            if "404" in str(e):
+                st.info("⚠️ 모델 이름 오류. 코드를 확인해주세요.")
+            elif "429" in str(e):
+                st.info("⚠️ 사용량이 많습니다. 잠시만 쉬어주세요.")
 
 
 
