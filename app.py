@@ -2,9 +2,10 @@ import streamlit as st
 import google.generativeai as genai
 import PyPDF2
 import os
+import time
 
 # ==========================================
-# [설정] 기본 탑재 백과사전 파일 목록
+# [설정] 백과사전 파일 목록 (선생님 파일명 확인!)
 BOOK_PARTS = [
     "jsbgocrc1.pdf",
     "jsbgocrc2.pdf",
@@ -14,7 +15,7 @@ BOOK_PARTS = [
 # ==========================================
 
 st.set_page_config(page_title="홈 닥터 AI", page_icon="🏥", layout="wide")
-st.title("🏥 내 손안의 주치의 (정밀 진단 모드)")
+st.title("🏥 내 손안의 주치의 (무제한 모드)")
 
 # 1. 키 설정
 try:
@@ -73,20 +74,17 @@ def get_relevant_content(full_text, query):
     
     return "\n...\n".join(top_chunks)
 
-# 4. 사이드바 (파일 업로드)
+# 4. 사이드바 및 데이터 로드
 with st.sidebar:
     st.header("📂 추가 자료 등록")
     uploaded_file = st.file_uploader("파일 업로드 (PDF/TXT)", type=['pdf', 'txt'])
     st.info(f"기본 탑재: 백과사전 (총 {len(BOOK_PARTS)}권)")
 
-# 5. 데이터 로드 및 검증
 encyclopedia_text = load_and_merge_books(BOOK_PARTS)
 target_text = ""
-source_info = ""
 use_smart_search = False
 
 if uploaded_file:
-    # 업로드 파일 읽기
     try:
         if uploaded_file.name.endswith(".pdf"):
             pdf_reader = PyPDF2.PdfReader(uploaded_file)
@@ -97,35 +95,21 @@ if uploaded_file:
         else:
             target_text = uploaded_file.read().decode("utf-8")
     except Exception as e:
-        st.error(f"❌ 파일 읽기 실패: {str(e)}")
+        st.error(f"파일 읽기 실패: {str(e)}")
         st.stop()
         
-    source_info = f"📂 업로드된 파일 ({uploaded_file.name})"
-    
-    # [진단 1] 텍스트가 텅 비었는지 확인 (스캔본 체크)
-    if len(target_text.strip()) == 0:
-        st.error("⚠️ 경고: 파일에서 글자를 하나도 읽지 못했습니다!")
-        st.warning("혹시 '이미지로 된 스캔 파일(사진)'인가요? 이 앱은 '글자(텍스트)'가 포함된 PDF만 읽을 수 있습니다.")
-        st.stop()
-        
-    # [진단 2] 용량에 따른 모드 전환
     if len(target_text) > 30000:
         use_smart_search = True
-        st.toast(f"🚀 파일이 큽니다({len(target_text)}자). 스마트 검색을 켭니다.")
-    else:
-        use_smart_search = False
-
+        st.toast("🚀 파일이 커서 스마트 검색을 켭니다.")
 else:
-    # 백과사전 사용
     if encyclopedia_text:
         target_text = encyclopedia_text
-        source_info = "📕 증상 백과사전 (전체)"
         use_smart_search = True
     else:
         st.error("백과사전 파일이 없습니다.")
         st.stop()
 
-# 6. 채팅 화면
+# 5. 채팅 화면
 if "messages" not in st.session_state:
     st.session_state.messages = []
     st.session_state.messages.append({"role": "assistant", "content": "안녕하세요. 증상을 분석해 드릴게요."})
@@ -141,19 +125,18 @@ if prompt := st.chat_input("증상을 입력하세요"):
 
     with st.chat_message("assistant"):
         msg_placeholder = st.empty()
-        msg_placeholder.markdown("🔍 정밀 분석 중...")
+        msg_placeholder.markdown("🔍 분석 중...")
         
         try:
             if use_smart_search:
                 final_context = get_relevant_content(target_text, prompt)
                 if not final_context or len(final_context.strip()) == 0:
-                    msg_placeholder.warning("⚠️ 파일에서 질문과 관련된 단어를 찾지 못했습니다. (검색 결과 없음)")
-                    # 검색 실패 시, AI에게 그냥 일반 지식으로라도 답하게 할지 선택
                     final_context = "관련 내용을 찾을 수 없습니다."
             else:
                 final_context = target_text
 
-            model = genai.GenerativeModel('gemini-flash-latest')
+            # [수정 완료] 2.5 대신 2.0 사용! (제한이 훨씬 널널함)
+            model = genai.GenerativeModel('gemini-2.0-flash')
             
             full_prompt = f"""
             문서 내용:
@@ -169,17 +152,12 @@ if prompt := st.chat_input("증상을 입력하세요"):
             st.session_state.messages.append({"role": "assistant", "content": response.text})
             
         except Exception as e:
-            # [진단 3] 에러 메시지를 숨기지 않고 그대로 보여줌!
             error_msg = str(e)
-            st.error(f"❌ 에러가 발생했습니다!")
-            st.code(error_msg) # 빨간 박스로 에러 코드 출력
-            
             if "429" in error_msg:
-                st.info("💡 힌트: '하루 무료 사용량'을 초과했거나, '너무 빨리' 질문해서 그렇습니다.")
-            elif "400" in error_msg:
-                st.info("💡 힌트: 질문 내용이나 파일 내용에 문제가 있습니다.")
-            elif "Empty" in error_msg:
-                st.info("💡 힌트: AI에게 보낼 내용이 텅 비어있습니다. (스캔 파일 가능성)")
+                st.error("🚦 너무 빨라요! 10초만 쉬었다가 다시 질문해주세요.")
+            else:
+                st.error(f"에러 발생: {error_msg}")
+
 
 
 
