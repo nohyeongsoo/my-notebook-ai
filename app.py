@@ -4,14 +4,14 @@ import PyPDF2
 import os
 
 # ==========================================
-# [설정] 쪼개서 올린 파일 이름들을 여기에 다 적어주세요!
-# 앱이 이 순서대로 읽어서 하나로 합칩니다.
+# [설정] 쪼개서 올린 파일 이름들 (책장 목록)
+# 선생님이 올리신 파일명으로 정확히 적어주세요!
 BOOK_PARTS = [
-    "jsbgocrc1.pdf",
-    "jsbgocrc2.pdf",
-    "jsbgocrc3.pdf",
-    "jsbgocrc4.pdf" 
-    # 필요한 만큼 계속 추가하세요 (콤마 주의!)
+    "book1.pdf",
+    "book2.pdf",
+    "book3.pdf",
+    "book4.pdf"
+    # 필요한 만큼 파일 이름을 계속 추가하세요 (콤마 주의!)
 ]
 # ==========================================
 
@@ -29,13 +29,13 @@ except:
     st.error("키 설정 오류")
     st.stop()
 
-# 2. 여러 파일을 읽어서 하나로 합치는 함수
+# 2. [수정됨] 제한 없이 끝까지 읽는 함수
 @st.cache_resource
 def load_and_merge_books(file_list):
     full_text = ""
     total_pages_read = 0
     
-    # 진행 상황을 보여줄 빈칸
+    # 진행 상황 표시
     status_text = st.empty()
     progress_bar = st.progress(0)
     
@@ -44,26 +44,27 @@ def load_and_merge_books(file_list):
         
         for idx, filename in enumerate(file_list):
             if not os.path.exists(filename):
-                continue # 파일 없으면 건너뜀
+                continue
             
-            status_text.info(f"📚 {idx+1}번째 책({filename})을 읽고 합치는 중...")
+            status_text.info(f"📚 {idx+1}번째 책({filename})을 읽는 중...")
             
             with open(filename, "rb") as f:
                 pdf_reader = PyPDF2.PdfReader(f)
-                # 각 책의 페이지를 다 읽음
+                num_pages = len(pdf_reader.pages)
+                
+                # [핵심] 페이지 제한 없이 for문이 끝까지 돕니다!
                 for page in pdf_reader.pages:
                     extracted = page.extract_text()
                     if extracted:
                         full_text += extracted + "\n"
                 
-                total_pages_read += len(pdf_reader.pages)
+                total_pages_read += num_pages
             
-            # 진행률 바 업데이트
+            # 진행률 업데이트
             progress_bar.progress((idx + 1) / total_files)
 
-        # 다 읽었으면 정리
-        status_text.success(f"✅ 총 {total_pages_read}페이지 분량의 백과사전 학습 완료!")
-        progress_bar.empty() # 진행바 숨김
+        status_text.success(f"✅ 백과사전 완전 정복! (총 {total_pages_read}페이지)")
+        progress_bar.empty()
         return full_text
 
     except Exception as e:
@@ -71,12 +72,11 @@ def load_and_merge_books(file_list):
         return None
 
 # 3. 실행 로직
-# 파일들이 하나라도 있는지 확인
 if not any(os.path.exists(f) for f in BOOK_PARTS):
-    st.error("⚠️ GitHub에 업로드된 책 파일이 없습니다. 파일 이름을 확인해주세요.")
+    st.error("⚠️ GitHub에 업로드된 책 파일이 없습니다. BOOK_PARTS 설정을 확인해주세요.")
     st.stop()
 
-# 합체 시작!
+# 책 합체 및 로드
 encyclopedia_text = load_and_merge_books(BOOK_PARTS)
 
 if not encyclopedia_text:
@@ -85,39 +85,38 @@ if not encyclopedia_text:
 # 4. 채팅 화면
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    st.session_state.messages.append({"role": "assistant", "content": "어디가 불편하신가요? 증상을 말씀해 주세요. 백과사전 전체를 검색해 드릴게요."})
+    st.session_state.messages.append({"role": "assistant", "content": "어디가 불편하신가요? 712페이지 전체 내용을 검색해 드릴게요."})
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if prompt := st.chat_input("증상을 입력하세요 (예: 오른쪽 배가 콕콕 쑤셔요)"):
+if prompt := st.chat_input("증상을 입력하세요 (예: 명치 쪽이 답답해요)"):
     with st.chat_message("user"):
         st.markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
     with st.chat_message("assistant"):
         msg_placeholder = st.empty()
-        msg_placeholder.markdown("🔍 720페이지 전체를 분석 중입니다...")
+        msg_placeholder.markdown("🔍 전체 백과사전을 분석 중입니다...")
         
         try:
-            # 2.5 모델 (대용량 처리에 강함)
+            # 2.5 모델 (대용량 처리용)
             model = genai.GenerativeModel('gemini-2.5-flash')
             
             full_prompt = f"""
             당신은 유능한 의학 상담 AI입니다.
-            아래 [백과사전 통합본]을 바탕으로 사용자의 증상을 분석하세요.
+            아래 [백과사전 통합본] 내용을 바탕으로 답변하세요.
 
-            [백과사전 통합본 내용]
+            [백과사전 통합본]
             {encyclopedia_text}
             
             [사용자 증상]
             {prompt}
             
-            답변 시 주의사항:
-            1. 백과사전에 있는 내용에 근거해서 설명하세요.
-            2. 추측하지 말고 책에 있는 팩트를 전달하세요.
-            3. 심각해 보이면 병원에 가보라는 조언을 덧붙이세요.
+            규칙:
+            1. 백과사전 내용에 기반하여 전문적으로 답변하세요.
+            2. 관련된 의학 정보를 찾아서 원인과 대처법을 설명하세요.
             """
             
             response = model.generate_content(full_prompt)
@@ -125,7 +124,12 @@ if prompt := st.chat_input("증상을 입력하세요 (예: 오른쪽 배가 콕
             st.session_state.messages.append({"role": "assistant", "content": response.text})
             
         except Exception as e:
-            msg_placeholder.error("⚠️ 내용이 너무 방대하여 처리가 지연되었습니다. 잠시 후 다시 시도하거나, 질문을 조금 더 구체적으로 해주세요.")
+            # 진짜 구글 한도 초과 시 에러 메시지
+            if "429" in str(e):
+                msg_placeholder.error("⚠️ 내용이 너무 방대하여 구글 서버가 잠시 숨을 고르고 있습니다. (1분 뒤 다시 시도해주세요)")
+            else:
+                msg_placeholder.error(f"에러가 발생했습니다: {str(e)}")
+
 
 
 
