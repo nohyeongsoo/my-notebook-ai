@@ -89,7 +89,7 @@ if prompt := st.chat_input("내용에 대해 질문하세요!"):
         
         try:
             # 안전하고 빠른 모델 사용
-            model = genai.GenerativeModel('gemini-flash-latest') 
+            model = genai.GenerativeModel('gemini-1.5-flash') 
             
             full_prompt = f"""
             다음은 문서의 내용입니다:
@@ -107,5 +107,6 @@ if prompt := st.chat_input("내용에 대해 질문하세요!"):
 
         except Exception as e:
             st.error(f"답변 생성 중 오류가 발생했습니다: {str(e)}")
+
 
 
