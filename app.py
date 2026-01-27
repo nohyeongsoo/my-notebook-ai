@@ -7,7 +7,7 @@ import os
 # ==========================================
 # [설정 1] 미리 심어둘 파일 이름을 여기에 적으세요!
 # (GitHub에 이 파일이 같이 올라가 있어야 합니다)
-DEFAULT_FILE_NAME = "jsbg.pdf" 
+DEFAULT_FILE_NAME = "jsbgocrc.pdf" 
 # ==========================================
 
 # 1. 앱 기본 설정
@@ -107,4 +107,5 @@ if prompt := st.chat_input("내용에 대해 질문하세요!"):
 
         except Exception as e:
             st.error(f"답변 생성 중 오류가 발생했습니다: {str(e)}")
+
 
