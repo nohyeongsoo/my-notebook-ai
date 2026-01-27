@@ -15,7 +15,7 @@ BOOK_PARTS = [
 # ==========================================
 
 st.set_page_config(page_title="홈 닥터 AI", page_icon="🏥", layout="wide")
-st.title("🏥 내 손안의 주치의 (만능 접속 버전)")
+st.title("🏥 내 손안의 주치의 (1.5-002 고정판)")
 
 # 1. 키 설정
 try:
@@ -72,34 +72,22 @@ def get_relevant_content(full_text, query):
     top_chunks = [chunk for score, chunk in relevant_chunks[:5]]
     return "\n...\n".join(top_chunks)
 
-# 4. [핵심] 만능 접속 시도 함수 (순서대로 다 찔러봄)
-def generate_with_auto_model_selection(prompt):
-    # 시도해볼 모델 목록 (우선순위: 제한이 널널한 1.5 시리즈)
-    candidate_models = [
-        "gemini-1.5-flash",          # 1순위: 가장 표준적인 무제한 모델
-        "gemini-1.5-flash-001",      # 2순위: 구버전 (안정적)
-        "gemini-1.5-flash-002",      # 3순위: 신버전
-        "gemini-1.5-flash-latest",   # 4순위: 최신 별칭
-        "gemini-flash-latest"        # 5순위: 최후의 수단
-    ]
-    
-    last_error = ""
-    
-    for model_name in candidate_models:
+# 4. 재시도 함수 (안정성 강화)
+def generate_with_retry(model_name, prompt):
+    max_retries = 3
+    for attempt in range(max_retries):
         try:
-            # 모델 생성 시도
             model = genai.GenerativeModel(model_name)
             response = model.generate_content(prompt)
-            return response.text, model_name # 성공하면 내용과 모델명 반환
-            
+            return response.text
         except Exception as e:
             error_msg = str(e)
-            # 429(제한초과)나 404(모델없음)면 다음 모델로 넘어감
-            last_error = error_msg
+            # 에러가 나면 잠시 대기
+            time.sleep(2)
             continue 
-
-    # 모든 모델이 실패했을 때
-    raise Exception(f"모든 모델 접속 실패. 마지막 에러: {last_error}")
+            
+    # 실패 시 에러 메시지 던짐
+    raise Exception(f"{error_msg}")
 
 # 5. UI 및 로직
 with st.sidebar:
@@ -139,7 +127,7 @@ else:
 # 6. 채팅창
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    st.session_state.messages.append({"role": "assistant", "content": "안녕하세요. 증상을 말씀해 주세요. (가장 빠른 모델을 자동으로 찾습니다)"})
+    st.session_state.messages.append({"role": "assistant", "content": "안녕하세요. 증상을 말씀해 주세요."})
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -152,7 +140,7 @@ if prompt := st.chat_input("증상을 입력하세요"):
 
     with st.chat_message("assistant"):
         msg_placeholder = st.empty()
-        msg_placeholder.markdown("🔍 접속 가능한 모델을 찾는 중...")
+        msg_placeholder.markdown("🔍 분석 중...")
         
         try:
             if use_smart_search:
@@ -162,6 +150,11 @@ if prompt := st.chat_input("증상을 입력하세요"):
             else:
                 final_context = target_text
 
+            # [핵심 수정] 
+            # 'latest' 같은 별명 대신 '002'라는 구체적인 번호를 씁니다.
+            # 이건 2.5 버전(20회 제한)으로 절대 납치되지 않습니다.
+            model_name = 'gemini-1.5-flash-002'
+            
             full_prompt = f"""
             문서 내용:
             {final_context}
@@ -171,20 +164,17 @@ if prompt := st.chat_input("증상을 입력하세요"):
             위 내용을 바탕으로 답변하세요.
             """
             
-            # [자동 찾기 실행]
-            final_response, used_model = generate_with_auto_model_selection(full_prompt)
-            
+            final_response = generate_with_retry(model_name, full_prompt)
             msg_placeholder.markdown(final_response)
             st.session_state.messages.append({"role": "assistant", "content": final_response})
             
-            # (디버깅용) 어떤 모델이 성공했는지 작게 표시
-            st.caption(f"⚡ 연결된 모델: {used_model}")
-            
         except Exception as e:
-            st.error("❌ 모든 연결 시도가 실패했습니다.")
-            st.error(f"에러 내용: {str(e)}")
+            st.error(f"❌ 에러 발생: {str(e)}")
             if "429" in str(e):
-                st.warning("⚠️ 현재 모든 모델의 사용량이 꽉 찼습니다. 내일 다시 시도해야 할 수도 있습니다.")
+                st.warning("⚠️ 2.5 버전 제한에 걸린 것 같습니다. 이 코드는 1.5-002를 강제합니다. 재부팅해주세요!")
+            elif "404" in str(e):
+                st.warning("⚠️ 모델을 찾을 수 없습니다. (gemini-1.5-flash-001로 변경해보세요)")
+
 
 
 
