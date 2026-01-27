@@ -27,19 +27,34 @@ except:
     st.stop()
 
 # 3. 문서 내용을 읽어오는 함수 (PDF, Word, TXT)
+# 3. 문서 내용을 읽어오는 함수 (페이지 제한 기능 추가)
 def get_text_from_file(file, filename):
     text = ""
     try:
         if filename.endswith(".pdf"):
             pdf_reader = PyPDF2.PdfReader(file)
-            for page in pdf_reader.pages:
+            # [수정] 전체를 다 읽지 않고, 앞부분 50페이지만 읽도록 제한!
+            # (무료 한도 초과 방지용)
+            max_pages = 50 
+            for i, page in enumerate(pdf_reader.pages):
+                if i >= max_pages: 
+                    break # 50페이지 넘으면 그만 읽기
                 text += page.extract_text() + "\n"
+                
         elif filename.endswith(".docx"):
             doc = docx.Document(file)
-            for para in doc.paragraphs:
+            text = ""
+            # 워드도 문단이 너무 많으면 1000개까지만 읽기
+            for i, para in enumerate(doc.paragraphs):
+                if i >= 1000: break
                 text += para.text + "\n"
+                
         elif filename.endswith(".txt"):
             text = file.read().decode("utf-8")
+            # 텍스트 파일도 너무 길면 앞부분 5만 글자만 자르기
+            if len(text) > 50000:
+                text = text[:50000]
+                
     except Exception as e:
         st.error(f"파일을 읽는 중 오류가 발생했습니다: {e}")
     return text
@@ -114,6 +129,7 @@ if prompt := st.chat_input("궁금한 점을 물어보세요!"):
                 st.info("팁: PDF 용량 줄이기 사이트에서 압축해서 올리거나, 파일을 나누어 올려주세요.")
             else:
                 st.error(f"에러가 발생했습니다: {str(e)}")
+
 
 
 
