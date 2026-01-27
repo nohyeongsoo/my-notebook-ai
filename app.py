@@ -153,7 +153,7 @@ if prompt := st.chat_input("증상을 입력하세요"):
             else:
                 final_context = target_text
 
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            model = genai.GenerativeModel('gemini-2.0-flash')
             
             full_prompt = f"""
             문서 내용:
@@ -180,6 +180,7 @@ if prompt := st.chat_input("증상을 입력하세요"):
                 st.info("💡 힌트: 질문 내용이나 파일 내용에 문제가 있습니다.")
             elif "Empty" in error_msg:
                 st.info("💡 힌트: AI에게 보낼 내용이 텅 비어있습니다. (스캔 파일 가능성)")
+
 
 
 
