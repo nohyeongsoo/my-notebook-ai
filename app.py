@@ -44,7 +44,7 @@ if prompt := st.chat_input("궁금한 점을 물어보세요!"):
         try:
             genai.configure(api_key=api_key)
             # 텍스트 모드 + 무료 모델 사용 (안전 모드)
-            model = genai.GenerativeModel('gemini-1.5-flash') 
+            model = genai.GenerativeModel('gemini-flash-latest') 
             
             context = ""
             if uploaded_file:
@@ -70,4 +70,3 @@ if prompt := st.chat_input("궁금한 점을 물어보세요!"):
 
         except Exception as e:
             st.error(f"에러가 발생했습니다: {str(e)}")
-
